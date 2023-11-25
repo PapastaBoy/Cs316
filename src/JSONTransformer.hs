@@ -157,8 +157,14 @@ equal t1 t2 = \input ->
 -- | Filter the input. If the transformer argument returns 'true' for
 -- the input, then return the input in a single element list. If the
 -- transformer argument does not return 'true' then return
+
+maybeBool :: Maybe Bool -> Bool
+maybeBool (Just x) = x
+maybeBool Nothing = False
+
 select :: Transformer -> Transformer
-select = error "UNIMPLEMENTED: select"
+select t = \input ->
+  if any (maybeBool . getBool) (t input) then [input] else []
 
 -- HINT: you'll need to check to see if the transformer argument
 -- returns 'true' at any point in its list. You can use the 'any'
