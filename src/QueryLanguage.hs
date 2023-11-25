@@ -13,7 +13,7 @@ data Query
   deriving Show
 
 -- | Executes a 'Query' by translating it into a `Transformer`. Each
--- of the constructors of 'Uery' is turned into its corresponding
+-- of the constructors of 'query' is turned into its corresponding
 -- `Transformer` defined in `JSONTransformer`.
 --
 -- For example:
@@ -26,7 +26,14 @@ data Query
 --
 -- which is the behaviour of `elements` on this input.
 execute :: Query -> Transformer
-execute = error "UNIMPLEMENTED: execute"
+execute (ConstString s) = string s
+execute (ConstInt i) = int i
+execute (Elements) = elements
+execute (Field s) = field s
+execute (Pipe q1 q2) = pipe (execute q1) (execute q2)
+execute (Equal q1 q2) = equal (execute q1) (execute q2)
+execute (Select q1) = select (execute q1)
+
 
 -- HINT: this function is very similar to the 'eval' function for
 -- evaluating Boolean formulas defined in the Week03 problems.
