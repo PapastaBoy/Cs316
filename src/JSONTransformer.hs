@@ -28,7 +28,7 @@ type Transformer = JSON -> [JSON]
 --
 --  > [String "hello"]
 string :: String -> Transformer
-string = error "UNIMPLEMENTED: string"
+string s = \_ -> [String s]
 
 -- | Ignores the 'JSON' input and returns the given integer as a piece
 -- of 'JSON' in a one element list.
@@ -41,7 +41,7 @@ string = error "UNIMPLEMENTED: string"
 --
 --  > [Number 1234]
 int :: Int -> Transformer
-int = error "UNIMPLEMENTED: int"
+int i = \_ -> [Number i]
 
 -- HINT: these two functions are similar to the 'literal' function in
 -- the paper linked above.
@@ -68,7 +68,9 @@ int = error "UNIMPLEMENTED: int"
 --
 -- because 'Number 1' is not an array.
 elements :: Transformer
-elements = error "UNIMPLEMENTED: elements"
+elements = \json -> case json of
+  Array xs -> [Array xs]
+  _        -> []
 
 -- HINT: you can use the 'getElements' function from the 'JSON'
 -- module.
@@ -96,7 +98,10 @@ elements = error "UNIMPLEMENTED: elements"
 --
 -- because the field "b" is not in the object.
 field :: String -> Transformer
-field = error "UNIMPLEMENTED: field"
+field s = \json -> case getField s json of
+  Just val -> [val]
+  Nothing -> []
+
 
 -- HINT: use 'getField' from the 'JSON' module to define this
 -- function.
@@ -117,7 +122,7 @@ field = error "UNIMPLEMENTED: field"
 --                            x6]]         x6]
 -- @@
 pipe :: Transformer -> Transformer -> Transformer
-pipe = error "UNIMPLEMENTED: pipe"
+pipe f g = \json -> concatMap g (f json)
 
 -- HINT: this function is the 'o' function in the paper linked above.
 
@@ -142,7 +147,8 @@ pipe = error "UNIMPLEMENTED: pipe"
 --
 --  > [Boolean False]
 equal :: Transformer -> Transformer -> Transformer
-equal = error "UNIMPLEMENTED: equal"
+equal t1 t2 = \input ->
+  [Boolean (x==y) | x <- t1 input, y <- t2 input]
 
 -- HINT: the easiest way to write this function is to use a list
 -- comprehension (Week 4) to get all the pairs returned by the two
