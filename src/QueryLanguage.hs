@@ -10,6 +10,8 @@ data Query
   | ConstInt    Int
   | ConstString String
   | Equal       Query Query
+  | LessThan    Query Query
+  | GreaterThan Query Query
   deriving Show
 
 -- | Executes a 'Query' by translating it into a `Transformer`. Each
@@ -32,6 +34,8 @@ execute (Elements) = elements
 execute (Field s) = field s
 execute (Pipe q1 q2) = pipe (execute q1) (execute q2)
 execute (Equal q1 q2) = equal (execute q1) (execute q2)
+execute (LessThan q1 q2) = lessThan (execute q1) (execute q2)
+execute (GreaterThan q1 q2) = greaterThan (execute q1) (execute q2)
 execute (Select q1) = select (execute q1)
 
 

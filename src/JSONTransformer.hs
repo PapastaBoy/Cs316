@@ -1,10 +1,11 @@
-module JSONTransformer (Transformer, field, select, pipe, string, int, equal, elements) where
+module JSONTransformer (Transformer, field, select, pipe, string, int, equal, elements, lessThan, greaterThan, fromResult) where
 
 import JSON
+import Result
 
 -- | A 'Transformer' is a function that takes a single 'JSON' value
 -- and returns a list of 'JSON' values.
-type Transformer = JSON -> [JSON]
+type Transformer = JSON -> Result [JSON]
 
 -- HINT: the design of these transformers is based on the design of
 -- the Jq tool, and this paper on querying XML:
@@ -28,7 +29,7 @@ type Transformer = JSON -> [JSON]
 --
 --  > [String "hello"]
 string :: String -> Transformer
-string s = \_ -> [String s]
+string s = \_ -> Ok [String s]
 
 -- | Ignores the 'JSON' input and returns the given integer as a piece
 -- of 'JSON' in a one element list.
@@ -41,7 +42,7 @@ string s = \_ -> [String s]
 --
 --  > [Number 1234]
 int :: Int -> Transformer
-int i = \_ -> [Number i]
+int i = \_ -> Ok [Number i]
 
 -- HINT: these two functions are similar to the 'literal' function in
 -- the paper linked above.
@@ -69,8 +70,8 @@ int i = \_ -> [Number i]
 -- because 'Number 1' is not an array.
 elements :: Transformer
 elements = \json -> case json of
-  Array xs -> [Array xs]
-  _        -> []
+  Array xs -> Ok xs
+  _        -> Ok []
 
 -- HINT: you can use the 'getElements' function from the 'JSON'
 -- module.
@@ -99,8 +100,8 @@ elements = \json -> case json of
 -- because the field "b" is not in the object.
 field :: String -> Transformer
 field s = \json -> case getField s json of
-  Just val -> [val]
-  Nothing -> []
+  Just val -> Ok [val]
+  Nothing -> Ok []
 
 
 -- HINT: use 'getField' from the 'JSON' module to define this
@@ -122,7 +123,7 @@ field s = \json -> case getField s json of
 --                            x6]]         x6]
 -- @@
 pipe :: Transformer -> Transformer -> Transformer
-pipe f g = \json -> concatMap g (f json)
+pipe f g json = concat <$> (traverse f =<< g json)
 
 -- HINT: this function is the 'o' function in the paper linked above.
 
@@ -147,8 +148,10 @@ pipe f g = \json -> concatMap g (f json)
 --
 --  > [Boolean False]
 equal :: Transformer -> Transformer -> Transformer
-equal t1 t2 = \input ->
-  [Boolean (x==y) | x <- t1 input, y <- t2 input]
+equal t1 t2 json = do
+  result1 <- t1 json
+  result2 <- t2 json
+  Ok [Boolean (x==y) | x <- result1, y <- result2]
 
 -- HINT: the easiest way to write this function is to use a list
 -- comprehension (Week 4) to get all the pairs returned by the two
@@ -162,9 +165,20 @@ maybeBool :: Maybe Bool -> Bool
 maybeBool (Just x) = x
 maybeBool Nothing = False
 
+traverseResult :: Applicative f => (a -> f b) -> Result a -> f (Result b)
+traverseResult _ (Error e) = pure (Error e)
+traverseResult f (Ok a) = fmap Ok (f a)
+
 select :: Transformer -> Transformer
-select t = \input ->
-  if any (maybeBool . getBool) (t input) then [input] else []
+select t json = do
+  let boolResults = traverseResult (fmap (fromResult . getBool)) (t json)
+  if any id (fromResult <$> boolResults)
+    then Ok [json]
+    else Ok []
+
+fromResult :: Result Bool -> Bool
+fromResult (Ok b)      = b
+fromResult (Error msg) = error msg
 
 -- HINT: you'll need to check to see if the transformer argument
 -- returns 'true' at any point in its list. You can use the 'any'
@@ -172,3 +186,23 @@ select t = \input ->
 -- boolean from the 'JSON' value using 'getBool' in the 'JSON'
 -- module. You might want to write a helper function to convert a
 -- 'Maybe Bool' to a 'Bool'.
+
+-- | Checks if the first JSON value is less than the second.
+lessThan :: Transformer -> Transformer -> Transformer
+lessThan t1 t2 json = do
+  results1 <- t1 json
+  results2 <- t2 json
+  return [Boolean $ any (\x -> getNumber x < getNumber (head results2)) results1]
+
+
+-- | Checks if the first JSON value is greater than the second.
+greaterThan :: Transformer -> Transformer -> Transformer
+greaterThan t1 t2 json = do
+  results1 <- t1 json
+  results2 <- t2 json
+  return [Boolean $ any (\x -> getNumber x > getNumber (head results2)) results1]
+
+-- Helper function to extract a number from a JSON value.
+getNumber :: JSON -> Maybe Int
+getNumber (Number n) = Just n
+getNumber _          = Nothing

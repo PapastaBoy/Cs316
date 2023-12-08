@@ -1,5 +1,7 @@
 module JSON where
 
+import Result (Result(..))
+
 -- | Representation of 'JSON' values in Haskell.
 --
 -- See the JSON website for more information: https://www.json.org/json-en.html
@@ -37,6 +39,7 @@ getElements _             = Nothing
 
 -- | Returns the boolean value of some 'JSON'. If the supplied JSON is
 -- not a boolean, returns 'Nothing'.
-getBool :: JSON -> Maybe Bool
-getBool (Boolean b) = Just b
-getBool _           = Nothing
+getBool :: JSON -> Result Bool
+getBool (Boolean b) = Ok b
+getBool (Object fields) = Ok (not (null fields))
+getBool _           = Error "Not a boolean"

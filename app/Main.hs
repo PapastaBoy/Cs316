@@ -2,6 +2,7 @@ module Main (main) where
 
 import System.Environment (getArgs)
 
+import JSON
 import JSONInput
 import JSONOutput
 import ParserCombinators (runParser)
@@ -9,46 +10,38 @@ import QueryLanguage
 import Result
 
 query :: Query
-query = Elements `Pipe` Select (Field "Country" `Equal` ConstString "S")
+query = Elements (Field "city" `Equal` ConstString "Seattle")
 
 main :: IO ()
-main =
-  do -- Get the JSON filename to read from the command line arguments.
-     --
-     -- FIXME: This is not robust. Can you alter it so that it reports
-     -- a user friendly error if the filename is not present? What if
-     -- we want to include additional command line options?
-     [filename] <- getArgs
+main = do
+  args <- getArgs
+  case args of
+    [filename] -> processFile filename
+    ["-c", jsonStr] -> processCommandLine jsonStr
+    _ -> putStrLn "Usage: program filename OR program -c 'jsonString'"
 
-     -- Read the raw data in from the file given.
-     --
-     -- FIXME: What if the user wants to query several JSON files?
-     rawText <- readFile filename
+processFile :: FilePath -> IO ()
+processFile filename = do
+  rawText <- readFile filename
+  let inputJSON = abortOnError (stringToJSON rawText)
+  processJSON inputJSON
 
-     -- Parse the raw text of the input into a structured JSON
-     -- representation.
-     --
-     -- FIXME: what if the user wants to
-     inputJSON <- abortOnError (stringToJSON rawText)
+processCommandLine :: String -> IO ()
+processCommandLine jsonStr = do
+  let inputJSON = abortOnError (stringToJSON jsonStr)
+  processJSON inputJSON
 
-     -- Run the query on the parsed JSON to a list of JSON values
-     --
-     -- FIXME: What if the user wants a different query? the query
-     -- should be taken as an input as well.
-     --
-     -- FIXME: the query langauge is quite inexpressive. What if the
-     -- user wants all hills over 1000 metres in Scotland and Wales?
-     -- or something else? What if they want to transform the input
-     -- and not just filter it?
-     --
-     -- FIXME: The query might be incompatible with the input data. It
-     -- might mention fields that the input does not have. Can these
-     -- errors be reported back to the user nicely?
-     let outputJSONs = execute query inputJSON
+processJSON :: IO JSON -> IO ()
+processJSON jsonIO = do
+  inputJSON <- jsonIO
+  putStrLn (renderJSON inputJSON)
 
-     -- Print the output, one per line.
-     --
-     -- FIXME: what if the user wants the JSON output to be nicely
-     -- formatted? Or in colour? Or in another format, like HTML or
-     -- CSV?
-     mapM_ (putStrLn . renderJSON) outputJSONs
+  -- Execute the query
+  let queryResults = execute query inputJSON
+
+  -- Print the result of the query
+  putStrLn "Query Result:"
+  case queryResults of
+    Ok results -> mapM_ (putStrLn . renderJSON) results
+    Error errorMsg -> putStrLn $ "Error: " ++ errorMsg
+
