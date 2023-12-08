@@ -37,7 +37,7 @@ executable json-query
       Paths_CS316Coursework2023
   hs-source-dirs:
       app
-  ghc-options: -fwarn-incomplete-patterns -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -fwarn-incomplete-patterns -threaded -rtsopts -with-rtsopts=-N -g
   build-depends:
       CS316Coursework2023
     , base >=4.7 && <5

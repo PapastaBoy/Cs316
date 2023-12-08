@@ -47,7 +47,7 @@ renderJSON json = case json of
      renderArray = concat . intersperse ", " . map renderJSON
 
      renderObject :: [(String, JSON)] -> String
-     renderObject concat . intersperse ", " . map renderField
+     renderObject = concat . intersperse ", " . map renderField
        where
          renderField (key, val) = renderString key ++ ": " ++ renderJSON val
 
